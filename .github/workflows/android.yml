@@ -1,0 +1,54 @@
+name: Android APK (arm64 debug)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # KONTROL: derleyeceğimiz main.dart gerçekten POS mu?
+      - name: Show main.dart head
+        run: sed -n '1,40p' lib/main.dart
+
+      # Android klasörü yoksa oluştur (lib’e dokunmaz!)
+      - name: Create Android folder if missing
+        run: |
+          if [ ! -d android ]; then
+            flutter create . --platforms=android --org com.w3ruslan --project-name surplace_pos
+          else
+            echo "android/ already exists; skipping flutter create"
+          fi
+          
+      - name: Add INTERNET permission
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.INTERNET' "$MANIFEST" || \
+            sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET" />\n    <application#' "$MANIFEST"
+            
+      - run: flutter pub get
+      
+      - run: flutter clean
+      
+      - name: Build APK (verbose)
+        run: flutter build apk --debug --target-platform=android-arm64 --no-shrink --verbose
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
