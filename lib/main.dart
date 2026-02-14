@@ -38,7 +38,7 @@ class App extends StatelessWidget {
 }
 
 /* =======================
-  MODÈLES & ÉTAT
+  MODÈLES & ÉTAT (MODELS & STATE)
 ======================= */
 class OptionItem {
   final String id;
@@ -117,7 +117,7 @@ class CartLine {
   final Product product;
   final Map<String, List<OptionItem>> picked;
   int qty;
-  String note; // Ajout de la note client
+  String note; 
 
   CartLine({required this.product, required this.picked, this.qty = 1, this.note = ""});
 
@@ -230,27 +230,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void replaceProductAt(int i, Product p) {
-    products[i] = p;
-    _saveProducts();
-    notifyListeners();
-  }
-
-  void addLineToCart(Product p, Map<String, List<OptionItem>> picked, String note, {int qty = 1}) {
-    cart.add(CartLine(product: p, picked: picked, qty: qty, note: note));
-    notifyListeners();
-  }
-
   void restoreOrderToCart(SavedOrder order) {
     cart.addAll(order.lines);
     notifyListeners();
   }
 
-  void updateCartLineQty(int i, int newQty) {
-    if (i < 0 || i >= cart.length) return;
-    if (newQty < 1) newQty = 1;
-    final l = cart[i];
-    cart[i] = CartLine(product: l.product, picked: l.picked, qty: newQty, note: l.note);
+  void addLineToCart(Product p, Map<String, List<OptionItem>> picked, String note, {int qty = 1}) {
+    cart.add(CartLine(product: p, picked: picked, qty: qty, note: note));
     notifyListeners();
   }
 
@@ -287,22 +273,6 @@ class AppState extends ChangeNotifier {
     _saveOrders();
     notifyListeners();
   }
-
-  Future<void> setPrepMinutes(int m) async {
-    prepMinutes = m;
-    final sp = await SharedPreferences.getInstance();
-    await sp.setInt('prepMinutes', m);
-    notifyListeners();
-  }
-
-  Future<void> setPrinter(String ip, int port) async {
-    printerIp = ip;
-    printerPort = port;
-    final sp = await SharedPreferences.getInstance();
-    await sp.setString('printerIp', ip);
-    await sp.setInt('printerPort', port);
-    notifyListeners();
-  }
 }
 
 class AppScope extends InheritedNotifier<AppState> {
@@ -312,7 +282,7 @@ class AppScope extends InheritedNotifier<AppState> {
 }
 
 /* =======================
-  DATA HELPERS (FRENCH)
+  DATA HELPERS
 ======================= */
 List<OptionItem> _meats(double base) => [
       OptionItem(id: 'kebab', label: 'Kebab', price: base),
@@ -460,23 +430,24 @@ class _HomeState extends State<Home> {
       const ProductsPage(),
       const CartPage(),
       const OrdersPage(),
-      const Center(child: Text("Paramètres Admin")),
+      const Center(child: Text("Admin")),
     ];
 
     return Scaffold(
       appBar: AppBar(title: const Text('BISCORNUE')),
       body: pages[index],
       bottomNavigationBar: NavigationBar(
+        height: 60, // Tablet için daha kısa bar (Shorter bar for tablet)
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: [
-          const NavigationDestination(icon: Icon(Icons.grid_view_rounded), label: 'Produits'),
+          const NavigationDestination(icon: Icon(Icons.grid_view_rounded, size: 22), label: 'Produits'),
           NavigationDestination(
-            icon: Badge(label: Text('${app.cart.length}'), child: const Icon(Icons.shopping_bag_outlined)),
+            icon: Badge(label: Text('${app.cart.length}'), child: const Icon(Icons.shopping_bag_outlined, size: 22)),
             label: 'Panier',
           ),
-          const NavigationDestination(icon: Icon(Icons.receipt_long), label: 'Commandes'),
-          const NavigationDestination(icon: Icon(Icons.settings), label: 'Admin'),
+          const NavigationDestination(icon: Icon(Icons.receipt_long, size: 22), label: 'Commandes'),
+          const NavigationDestination(icon: Icon(Icons.settings, size: 22), label: 'Admin'),
         ],
       ),
     );
@@ -484,7 +455,7 @@ class _HomeState extends State<Home> {
 }
 
 /* =======================
-  PAGE PRODUITS
+  PAGE PRODUITS (OPTIMIZED FOR TABLET)
 ======================= */
 class ProductsPage extends StatelessWidget {
   const ProductsPage({super.key});
@@ -492,19 +463,26 @@ class ProductsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 1.4, crossAxisSpacing: 16, mainAxisSpacing: 16),
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3, // Tablet için 3 sütun (3 columns for tablet)
+        childAspectRatio: 1.6, 
+        crossAxisSpacing: 12, 
+        mainAxisSpacing: 12
+      ),
       itemCount: app.products.length,
       itemBuilder: (_, i) => InkWell(
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductSelectionPage(product: app.products[i]))),
         child: Ink(
-          decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(24)),
+          decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(16)),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.fastfood, color: Colors.deepOrange),
-              const SizedBox(height: 8),
-              Text(app.products[i].name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Icon(Icons.fastfood, color: Colors.deepOrange, size: 28),
+              const SizedBox(height: 4),
+              Text(app.products[i].name, 
+                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                   textAlign: TextAlign.center),
             ],
           ),
         ),
@@ -514,7 +492,7 @@ class ProductsPage extends StatelessWidget {
 }
 
 /* =======================
-  SÉLECTION PRODUIT (ONE PAGE)
+  SÉLECTION PRODUIT (COMPACT VERSION)
 ======================= */
 class ProductSelectionPage extends StatefulWidget {
   final Product product;
@@ -556,45 +534,52 @@ class _ProductSelectionPageState extends State<ProductSelectionPage> {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.product.name)),
+      appBar: AppBar(title: Text(widget.product.name), toolbarHeight: 50),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (var g in widget.product.groups) ...[
-              Text(g.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
+              Text(g.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: g.items.map((it) {
                   final sel = (picked[g.id] ?? []).any((e) => e.id == it.id);
                   return ChoiceChip(
-                    label: Text("${it.label} ${it.price > 0 ? '(+€${it.price})' : ''}"),
+                    label: Text("${it.label} ${it.price > 0 ? '(+€${it.price})' : ''}", 
+                                style: const TextStyle(fontSize: 13)),
                     selected: sel,
+                    visualDensity: VisualDensity.compact,
                     onSelected: (_) => _onToggle(g, it),
                   );
                 }).toList(),
               ),
-              const Divider(height: 32),
+              const Divider(height: 20),
             ],
-            const Text("Note pour la cuisine (ex: sans oignon)", style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
+            const Text("Note pour la cuisine", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 4),
             TextField(
               controller: noteCtrl,
-              decoration: const InputDecoration(border: OutlineInputBorder(), hintText: "Votre message..."),
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(), 
+                hintText: "Ex: sans oignon..."
+              ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 45,
               child: FilledButton(
                 onPressed: () {
                   app.addLineToCart(widget.product, picked, noteCtrl.text);
                   Navigator.pop(context);
                 },
-                child: const Text("Ajouter au Panier"),
+                child: const Text("Ajouter au Panier", style: TextStyle(fontSize: 16)),
               ),
             ),
           ],
@@ -605,7 +590,7 @@ class _ProductSelectionPageState extends State<ProductSelectionPage> {
 }
 
 /* =======================
-  DIALOGUE HEURE AVANCÉ
+  DIALOGUE HEURE AVANCÉ (COMPACT)
 ======================= */
 class AdvancedTimeDialog extends StatefulWidget {
   final int defaultMin;
@@ -627,25 +612,30 @@ class _AdvancedTimeDialogState extends State<AdvancedTimeDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text("Heure de retrait"),
+      titlePadding: const EdgeInsets.all(12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      title: const Text("Heure de retrait", style: TextStyle(fontSize: 18)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text("${selected.hour.toString().padLeft(2,'0')}:${selected.minute.toString().padLeft(2,'0')}", 
-               style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
-          const SizedBox(height: 16),
-          const Text("Ajouter des minutes :"),
+               style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+          const SizedBox(height: 12),
+          const Text("Ajouter des minutes :", style: TextStyle(fontSize: 13)),
           const SizedBox(height: 8),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             alignment: WrapAlignment.center,
-            children: quicks.map((m) => ActionChip(label: Text("+$m"), onPressed: () => setState(() => selected = DateTime.now().add(Duration(minutes: m))))).toList(),
+            children: quicks.map((m) => ActionChip(
+              label: Text("+$m", style: const TextStyle(fontSize: 12)), 
+              onPressed: () => setState(() => selected = DateTime.now().add(Duration(minutes: m)))
+            )).toList(),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           TextButton.icon(
-            icon: const Icon(Icons.access_time),
-            label: const Text("Choisir Manuellement"),
+            icon: const Icon(Icons.access_time, size: 18),
+            label: const Text("Manuel", style: TextStyle(fontSize: 13)),
             onPressed: () async {
               final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(selected));
               if (t != null) setState(() => selected = DateTime(selected.year, selected.month, selected.day, t.hour, t.minute));
@@ -681,25 +671,27 @@ class CartPage extends StatelessWidget {
             itemBuilder: (context, i) {
               final l = app.cart[i];
               return ListTile(
-                title: Text("${l.product.name} x${l.qty}"),
-                subtitle: Text("Note: ${l.note}\n${l.picked.values.expand((e)=>e).map((e)=>e.label).join(', ')}"),
-                trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => app.removeCartLineAt(i)),
+                dense: true, // Daha sıkışık liste (Denser list)
+                title: Text("${l.product.name} x${l.qty}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text("Note: ${l.note}\n${l.picked.values.expand((e)=>e).map((e)=>e.label).join(', ')}", style: const TextStyle(fontSize: 12)),
+                trailing: IconButton(icon: const Icon(Icons.delete_outline, size: 20), onPressed: () => app.removeCartLineAt(i)),
               );
             },
           ),
         ),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           color: Colors.grey.shade100,
           child: Column(
             children: [
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text("TOTAL", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                Text("€${total.toStringAsFixed(2)}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text("TOTAL", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text("€${total.toStringAsFixed(2)}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
+                height: 45,
                 child: FilledButton(
                   onPressed: () async {
                     final name = await _askName(context);
@@ -724,8 +716,8 @@ class CartPage extends StatelessWidget {
     builder: (ctx) {
       final ctrl = TextEditingController();
       return AlertDialog(
-        title: const Text("Nom du client"),
-        content: TextField(controller: ctrl, autofocus: true, decoration: const InputDecoration(hintText: "Écrire le nom")),
+        title: const Text("Nom du client", style: TextStyle(fontSize: 16)),
+        content: TextField(controller: ctrl, autofocus: true, style: const TextStyle(fontSize: 14)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Annuler")),
           FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text("OK")),
@@ -750,18 +742,19 @@ class OrdersPage extends StatelessWidget {
       itemBuilder: (context, i) {
         final o = orders[i];
         return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: ListTile(
-            title: Text("${o.customer} - €${o.total.toStringAsFixed(2)}"),
-            subtitle: Text("Prêt à: ${o.readyAt.hour}:${o.readyAt.minute.toString().padLeft(2, '0')}"),
+            dense: true,
+            title: Text("${o.customer} - €${o.total.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text("Prêt à: ${o.readyAt.hour}:${o.readyAt.minute.toString().padLeft(2, '0')}", style: const TextStyle(fontSize: 12)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () {
+                IconButton(icon: const Icon(Icons.edit, color: Colors.blue, size: 20), onPressed: () {
                   app.restoreOrderToCart(o);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Commande rétablie dans le panier")));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Rétablie dans le panier")));
                 }),
-                IconButton(icon: const Icon(Icons.print), onPressed: () => printOrderAndroidWith(o, app.printerIp, app.printerPort)),
+                IconButton(icon: const Icon(Icons.print, size: 20), onPressed: () => printOrderAndroidWith(o, app.printerIp, app.printerPort)),
               ],
             ),
           ),
@@ -772,12 +765,12 @@ class OrdersPage extends StatelessWidget {
 }
 
 /* =======================
-  YAZICI (ESC/POS)
+  YAZICI FONKSİYONU (REMAINS SAME)
 ======================= */
 Future<void> printOrderAndroidWith(SavedOrder o, String ip, int port) async {
   try {
     final socket = await Socket.connect(ip, port, timeout: const Duration(seconds: 5));
-    socket.add([27, 64]); // Init
+    socket.add([27, 64]); 
     socket.write("\n*** BISCORNUE ***\n");
     socket.write("Client: ${o.customer}\n");
     socket.write("Pret a: ${o.readyAt.hour}:${o.readyAt.minute.toString().padLeft(2, '0')}\n");
@@ -792,7 +785,7 @@ Future<void> printOrderAndroidWith(SavedOrder o, String ip, int port) async {
     }
     socket.write("--------------------------------\n");
     socket.write("TOTAL: ${o.total.toStringAsFixed(2)} Euro\n\n\n");
-    socket.add([29, 86, 66, 0]); // Cut
+    socket.add([29, 86, 66, 0]); 
     await socket.flush();
     await socket.close();
   } catch (e) {
