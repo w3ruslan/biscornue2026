@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String PRINTER_IP = '192.168.1.1'; // <-- Epson yazıcının IP'si
 const int PRINTER_PORT = 9100;           // Genelde 9100 (RAW)
 const String _ADMIN_PIN = '6538';
-const int EARLY_TOLERANCE_MIN = 5; // 5 dakika erken alma toleransı (Eski mantık için duruyor ama artık minimum ŞU AN)
+const int EARLY_TOLERANCE_MIN = 5; 
 
 /* =======================
   ENTRY
@@ -1214,75 +1214,20 @@ class _OrderWizardState extends State<OrderWizard> {
     picked[g.id] = [it];
     setState(() {});
   }
+
+  // TÜM KISITLAMALAR KALDIRILDI - TAMAMEN ÖZGÜR SEÇİM MANTIĞI
   void _toggleMulti(OptionGroup g, OptionItem it) {
     final list = List<OptionItem>.from(picked[g.id] ?? []);
-    bool isCrud = g.id == 'crudites' || g.id == 'crudites_enfant';
-    bool isSauceGroup = g.id == 'sauces' || g.id == 'sauce_burger' || g.id == 'sauce_pf' || g.id == 'sauce_enfant';
-    bool isTacosSauce = g.id == 'sauce_tacos';
     bool exists = list.any((e) => e.id == it.id);
-    bool isSansCrud = it.id == 'sans_crudites';
-    bool isAvecCrud = it.id == 'avec_crudites' || it.id == 'avec';
-
-    if (isCrud && (isSansCrud || isAvecCrud)) {
-      if (exists) {
-        list.removeWhere((e) => e.id == it.id);
-        picked[g.id] = list;
-      } else {
-        picked[g.id] = [it];
-      }
-      setState(() {});
-      return;
-    }
-    if (isCrud) {
-      list.removeWhere((e) => e.id == 'sans_crudites' || e.id == 'avec_crudites' || e.id == 'avec');
-    }
-    if (isSauceGroup) {
-      if (it.id == 'sans_sauce') {
-        if (exists) {
-          list.removeWhere((e) => e.id == 'sans_sauce');
-        } else {
-          picked[g.id] = [it];
-        }
-        setState(() {});
-        return;
-      } else {
-        list.removeWhere((e) => e.id == 'sans_sauce');
-      }
-    }
-    if (isTacosSauce) {
-      if (it.id == 'sans_sauce' || it.id == 'seulement_fromagere') {
-        if (exists) {
-          list.removeWhere((e) => e.id == it.id);
-        } else {
-          picked[g.id] = [it];
-          setState(() {});
-          return;
-        }
-        picked[g.id] = list;
-        setState(() {});
-        return;
-      }
-      if (it.id == 'fromagere') {
-        if (list.any((e) => e.id == 'sans_fromagere')) return;
-      }
-      if (it.id == 'sans_fromagere') {
-        if (exists) {
-          list.removeWhere((e) => e.id == 'sans_fromagere');
-        } else {
-          list.removeWhere((e) => e.id == 'fromagere' || e.id == 'seulement_fromagere' || e.id == 'sans_sauce');
-          list.add(it);
-        }
-        picked[g.id] = list;
-        setState(() {});
-        return;
-      }
-      list.removeWhere((e) => e.id == 'sans_sauce' || e.id == 'seulement_fromagere');
-    }
+    
     if (exists) {
+      // Eğer seçiliyse kaldır
       list.removeWhere((e) => e.id == it.id);
     } else {
+      // Değilse direkt ekle
       list.add(it);
     }
+    
     picked[g.id] = list;
     setState(() {});
   }
@@ -1426,15 +1371,7 @@ class _GroupStep extends StatelessWidget {
                   final selectedList = picked[group.id] ?? const <OptionItem>[];
                   final isSelected = selectedList.any((e) => e.id == it.id);
                   final color = Theme.of(context).colorScheme;
-                  bool isAvecId(String id) => id == 'avec_crudites' || id == 'avec';
-                  bool isSansId(String id) => id == 'sans_crudites';
-                  final isCrudGroup = group.id == 'crudites' || group.id == 'crudites_enfant';
-                  final avecOn = isCrudGroup && selectedList.any((e) => isAvecId(e.id));
-                  final sansOn = isCrudGroup && selectedList.any((e) => isSansId(e.id));
-                  bool cruditesHardLock =
-                      isCrudGroup && (avecOn || sansOn) && !((avecOn && isAvecId(it.id)) || (sansOn && isSansId(it.id)));
-                  bool limitLock = false; 
-                  final disabled = cruditesHardLock || limitLock;
+                  
                   void onTap() {
                     if (group.multiple) {
                       toggleMulti(group, it);
@@ -1442,58 +1379,57 @@ class _GroupStep extends StatelessWidget {
                       toggleSingle(group, it);
                     }
                   }
+                  
+                  // KISITLAMALAR VE OPACITY KALDIRILDI
                   return InkWell(
                     borderRadius: BorderRadius.circular(14),
-                    onTap: disabled ? null : onTap,
-                    child: Opacity(
-                      opacity: disabled ? 0.35 : 1.0,
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          color: isSelected ? color.primaryContainer : color.surfaceVariant,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isSelected ? color.primary : color.outlineVariant,
-                            width: isSelected ? 2 : 1,
-                          ),
+                    onTap: onTap,
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        color: isSelected ? color.primaryContainer : color.surfaceVariant,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? color.primary : color.outlineVariant,
+                          width: isSelected ? 2 : 1,
                         ),
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              top: 6, right: 6,
-                              child: group.multiple
-                                  ? Icon(
-                                      isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                                      size: 18, color: isSelected ? color.primary : color.onSurfaceVariant,
-                                    )
-                                  : Icon(
-                                      isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                                      size: 18, color: isSelected ? color.primary : color.onSurfaceVariant,
-                                    ),
-                            ),
-                            Center(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: 6, right: 6,
+                            child: group.multiple
+                                ? Icon(
+                                    isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                                    size: 18, color: isSelected ? color.primary : color.onSurfaceVariant,
+                                  )
+                                : Icon(
+                                    isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                                    size: 18, color: isSelected ? color.primary : color.onSurfaceVariant,
+                                  ),
+                          ),
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    it.label,
+                                    textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  if (it.price != 0)
                                     Text(
-                                      it.label,
-                                      textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                      '+ ${_formatEuro(it.price)}',
+                                      style: TextStyle(fontSize: 12, color: color.onSurfaceVariant),
+                                      textAlign: TextAlign.center,
                                     ),
-                                    const SizedBox(height: 4),
-                                    if (it.price != 0)
-                                      Text(
-                                        '+ ${_formatEuro(it.price)}',
-                                        style: TextStyle(fontSize: 12, color: color.onSurfaceVariant),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                  ],
-                                ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -1714,18 +1650,16 @@ class CartPage extends StatelessWidget {
 }
 
 /* =======================
-  PAGE 4 : COMMANDES
+  PAGE 4 : COMMANDES (GÜNCELLENDİ: GÜNLÜK TAKİP EKRANI)
   ======================= */
 class OrdersPage extends StatelessWidget {
   const OrdersPage({super.key});
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final orders = app.orders.reversed.toList();
-    final int totalOrders = orders.length;
-    final int totalItems = orders.fold(0, (s, o) => s + o.lines.length);
-    final double totalEuros = orders.fold(0.0, (s, o) => s + o.total);
-    if (orders.isEmpty) {
+    final allOrders = app.orders.reversed.toList();
+    
+    if (allOrders.isEmpty) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: const [
           Icon(Icons.receipt_long, size: 48),
@@ -1734,6 +1668,158 @@ class OrdersPage extends StatelessWidget {
         ]),
       );
     }
+
+    // Siparişleri Günlere Göre Grupla
+    final Map<String, List<SavedOrder>> grouped = {};
+    for (var o in allOrders) {
+      final dateStr = '${_two(o.createdAt.day)}/${_two(o.createdAt.month)}/${o.createdAt.year}';
+      grouped.putIfAbsent(dateStr, () => []).add(o);
+    }
+
+    // SADECE BUGÜNÜN İSTATİSTİKLERİ
+    final now = DateTime.now();
+    final todayStr = '${_two(now.day)}/${_two(now.month)}/${now.year}';
+    final todaysOrders = grouped[todayStr] ?? [];
+    
+    final int totalOrdersToday = todaysOrders.length;
+    final int totalItemsToday = todaysOrders.fold(0, (s, o) => s + o.lines.length);
+    final double totalEurosToday = todaysOrders.fold(0.0, (s, o) => s + o.total);
+
+    // Listeyi Widget'lara Çevir (Başlıklar ve Siparişler)
+    final List<Widget> listItems = [];
+    for (final entry in grouped.entries) {
+      final dateStr = entry.key;
+      final dayOrders = entry.value;
+      final dayTotal = dayOrders.fold(0.0, (s, o) => s + o.total);
+
+      // Günlük Başlık Kutusu (Tarih ve O Günün Toplam Cirosu)
+      listItems.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: Theme.of(context).colorScheme.primaryContainer,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                dateStr == todayStr ? "Aujourd'hui ($dateStr)" : dateStr,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ),
+              Text(
+                'Total: €${dayTotal.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // O Günün Siparişleri
+      for (var o in dayOrders) {
+        final who = o.customer.isEmpty ? '' : ' — ${o.customer}';
+        listItems.add(
+          ListTile(
+            leading: const Icon(Icons.receipt),
+            title: Text('Commande$who • ${o.lines.fold<int>(0, (s, l) => s + l.qty)} article(s) • €${o.total.toStringAsFixed(2)}'),
+            subtitle: Text('Prêt à ${_two(o.readyAt.hour)}:${_two(o.readyAt.minute)}'),
+            trailing: IconButton(
+              icon: const Icon(Icons.print_outlined),
+              onPressed: () async {
+                try {
+                  final app = AppScope.of(context);
+                  await printOrderAndroidWith(o, app.printerIp, app.printerPort);
+                  if (context.mounted) _snack(context, 'Envoyé à l’imprimante.');
+                } catch (e) {
+                  if (context.mounted) _snack(context, 'Échec de l’impression: $e');
+                }
+              },
+              tooltip: 'Imprimer',
+            ),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) {
+                  return AlertDialog(
+                    title: const Text('Détails de la commande'),
+                    content: SizedBox(
+                      width: 360,
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          if (o.customer.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text('Client: ${o.customer}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text('Prêt à: ${_two(o.readyAt.hour)}:${_two(o.readyAt.minute)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                          for (int idx = 0; idx < o.lines.length; idx++) ...[
+                            Text('Article ${idx + 1}: ${o.lines[idx].product.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            for (final g in o.lines[idx].product.groups)
+                              if ((o.lines[idx].picked[g.id] ?? const <OptionItem>[]).isNotEmpty) ...[
+                                Text(g.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                for (final it in (o.lines[idx].picked[g.id] ?? const <OptionItem>[]))
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('• ${it.label}'),
+                                      Text(it.price == 0 ? '€0.00' : '€${it.price.toStringAsFixed(2)}'),
+                                    ],
+                                  ),
+                              ],
+                            if (o.lines[idx].note.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4, bottom: 4),
+                                child: Text('Note: ${o.lines[idx].note}', style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+                              ),
+                            const Divider(),
+                          ],
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold)),
+                              Text('€${o.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      TextButton.icon(
+                        onPressed: () async {
+                          try {
+                            final app = AppScope.of(context);
+                            await printOrderAndroidWith(o, app.printerIp, app.printerPort);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              _snack(context, 'Envoyé à l’imprimante.');
+                            }
+                          } catch (e) {
+                            _snack(context, 'Échec de l’impression: $e');
+                          }
+                        },
+                        icon: const Icon(Icons.print_outlined),
+                        label: const Text('Imprimer'),
+                      ),
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        );
+        listItems.add(const Divider(height: 1));
+      }
+    }
+
     return Column(
       children: [
         Padding(
@@ -1749,8 +1835,8 @@ class OrdersPage extends StatelessWidget {
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (_) => AlertDialog(
-                    title: const Text('Fin de journée ?'),
-                    content: const Text('Toutes les commandes seront supprimées. Action irréversible.'),
+                    title: const Text('Tout supprimer ?'),
+                    content: const Text('Toutes les commandes seront supprimées de l\'historique. Action irréversible.'),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
                       FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Supprimer')),
@@ -1760,127 +1846,42 @@ class OrdersPage extends StatelessWidget {
                 if (ok == true) app.clearOrders();
               },
               icon: const Icon(Icons.delete_forever),
-              label: const Text('Journée terminée'),
+              label: const Text('Tout vider'),
             ),
           ]),
         ),
+        // YENİ: SADECE BUGÜNÜN İSTATİSTİKLERİ KARTİ
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
           child: Card(
+            elevation: 2,
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Stat(label: 'Commandes', value: '$totalOrders'),
-                  _Stat(label: 'Articles', value: '$totalItems'),
-                  _Stat(label: 'Total', value: '€${totalEuros.toStringAsFixed(2)}'),
+                  const Text("Statistiques d'Aujourd'hui", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _Stat(label: 'Commandes', value: '$totalOrdersToday'),
+                      _Stat(label: 'Articles', value: '$totalItemsToday'),
+                      _Stat(label: 'Caisse', value: '€${totalEurosToday.toStringAsFixed(2)}'),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
         ),
         const Divider(height: 1),
+        // SİPARİŞLERİN GÜNLERE GÖRE LİSTELENMESİ
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: orders.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (_, i) {
-              final o = orders[i];
-              final who = o.customer.isEmpty ? '' : ' — ${o.customer}';
-              return ListTile(
-                leading: const Icon(Icons.receipt),
-                title: Text('Commande$who • ${o.lines.fold<int>(0, (s, l) => s + l.qty)} article(s) • €${o.total.toStringAsFixed(2)}'),
-                subtitle: Text('Prêt à ${_two(o.readyAt.hour)}:${_two(o.readyAt.minute)}'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.print_outlined),
-                  onPressed: () async {
-                    try {
-                      final app = AppScope.of(context);
-                      await printOrderAndroidWith(o, app.printerIp, app.printerPort);
-                      if (context.mounted) _snack(context, 'Envoyé à l’imprimante.');
-                    } catch (e) {
-                      if (context.mounted) _snack(context, 'Échec de l’impression: $e');
-                    }
-                  },
-                  tooltip: 'Imprimer',
-                ),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) {
-                      return AlertDialog(
-                        title: const Text('Détails de la commande'),
-                        content: SizedBox(
-                          width: 360,
-                          child: ListView(
-                            shrinkWrap: true,
-                            children: [
-                              if (o.customer.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Text('Client: ${o.customer}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                ),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Text('Prêt à: ${_two(o.readyAt.hour)}:${_two(o.readyAt.minute)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                              ),
-                              for (int idx = 0; idx < o.lines.length; idx++) ...[
-                                Text('Article ${idx + 1}: ${o.lines[idx].product.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                for (final g in o.lines[idx].product.groups)
-                                  if ((o.lines[idx].picked[g.id] ?? const <OptionItem>[]).isNotEmpty) ...[
-                                    Text(g.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    for (final it in (o.lines[idx].picked[g.id] ?? const <OptionItem>[]))
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text('• ${it.label}'),
-                                          Text(it.price == 0 ? '€0.00' : '€${it.price.toStringAsFixed(2)}'),
-                                        ],
-                                      ),
-                                  ],
-                                if (o.lines[idx].note.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4, bottom: 4),
-                                    child: Text('Note: ${o.lines[idx].note}', style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
-                                  ),
-                                const Divider(),
-                              ],
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  Text('€${o.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        actions: [
-                          TextButton.icon(
-                            onPressed: () async {
-                              try {
-                                final app = AppScope.of(context);
-                                await printOrderAndroidWith(o, app.printerIp, app.printerPort);
-                                if (context.mounted) {
-                                  Navigator.pop(context);
-                                  _snack(context, 'Envoyé à l’imprimante.');
-                                }
-                              } catch (e) {
-                                _snack(context, 'Échec de l’impression: $e');
-                              }
-                            },
-                            icon: const Icon(Icons.print_outlined),
-                            label: const Text('Imprimer'),
-                          ),
-                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
-                        ],
-                      );
-                    },
-                  );
-                },
-              );
+          child: ListView.builder(
+            itemCount: listItems.length,
+            itemBuilder: (context, index) {
+              return listItems[index];
             },
           ),
         ),
@@ -1966,10 +1967,7 @@ Future<DateTime?> _askReadyTime(BuildContext context) async {
   final now = DateTime.now();
   final anchor = DateTime(now.year, now.month, now.day, now.hour, now.minute);
   
-  // Varsayılan açılış saati (Ayarlanan "Délai de préparation" kadar ileri atar)
   final defaultDT = anchor.add(Duration(minutes: app.prepMinutes));
-  
-  // YENİ: Seçilebilecek en erken saat artık doğrudan "Şu an" (anchor).
   final earliestDT = anchor; 
   
   TimeOfDay initial = TimeOfDay(hour: defaultDT.hour, minute: defaultDT.minute);
@@ -1989,10 +1987,8 @@ Future<DateTime?> _askReadyTime(BuildContext context) async {
     );
     if (picked == null) return null;
     
-    // Gece yarısı geçişleri için bugünü baz alalım (anchor day)
     DateTime pickedDT = DateTime(anchor.year, anchor.month, anchor.day, picked.hour, picked.minute);
     
-    // Eğer seçtiğimiz saat şimdiki saatten çok küçükse, (örneğin şu an 23:30, biz 00:30 seçtik) ertesi güne ait demektir.
     if (picked.hour < anchor.hour - 12) {
       pickedDT = pickedDT.add(const Duration(days: 1));
     }
