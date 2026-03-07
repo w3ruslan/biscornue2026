@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String PRINTER_IP = '192.168.1.1'; // <-- Epson yazıcının IP'si
 const int PRINTER_PORT = 9100;           // Genelde 9100 (RAW)
 const String _ADMIN_PIN = '6538';
-const int EARLY_TOLERANCE_MIN = 5; // 5 dakika erken alma toleransı
+const int EARLY_TOLERANCE_MIN = 5; // 5 dakika erken alma toleransı (Eski mantık için duruyor ama artık minimum ŞU AN)
 
 /* =======================
   ENTRY
@@ -97,7 +97,6 @@ class OptionGroup {
       title: j['title'],
       multiple: isMulti,
       minSelect: j['min'] ?? 0,
-      // Çoklu seçimse maxSelect'i 99 yap (sınırsız), değilse eski değeri al
       maxSelect: isMulti ? 99 : (j['max'] ?? 1),
       items: (j['items'] as List? ?? [])
           .map((e) => OptionItem.fromJson(Map<String, dynamic>.from(e)))
@@ -120,7 +119,7 @@ class CartLine {
   final Product product;
   final Map<String, List<OptionItem>> picked;
   int qty;
-  final String note; // YENİ: Mutfak için özel not
+  final String note;
 
   CartLine({
     required this.product,
@@ -261,7 +260,6 @@ class AppState extends ChangeNotifier {
     _saveProducts();
     notifyListeners();
   }
-  // YENİ: note parametresi eklendi
   void addLineToCart(Product p, Map<String, List<OptionItem>> picked, {int qty = 1, String note = ''}) {
     final deep = {for (final e in picked.entries) e.key: List<OptionItem>.from(e.value)};
     cart.add(CartLine(product: p, picked: deep, qty: qty, note: note));
@@ -284,7 +282,6 @@ class AppState extends ChangeNotifier {
     cart.clear();
     notifyListeners();
   }
-  // YENİ: note parametresi eklendi
   void updateCartLineAt(int i, Map<String, List<OptionItem>> picked, String note) {
     if (i < 0 || i >= cart.length) return;
     final deep = {for (final e in picked.entries) e.key: List<OptionItem>.from(e.value)};
@@ -415,7 +412,6 @@ class _HomeState extends State<Home> {
             OptionItem(id: 'pita', label: 'Pain pita', price: 0.00),
             OptionItem(id: 'galette', label: 'Galette', price: 0.00),
           ]),
-          // Çoklu seçimlerde maxSelect = 99 yaptık
           OptionGroup(id: 'crudites', title: 'Crudites / Retirer', multiple: true, minSelect: 0, maxSelect: 99, items: [
             OptionItem(id: 'avec_crudites', label: 'Avec crudités', price: 0.00),
             OptionItem(id: 'sans_crudites', label: 'Sans crudités', price: 0.00),
@@ -963,7 +959,6 @@ class _GroupEditorState extends State<_GroupEditor> {
     widget.group.title = titleCtrl.text.trim();
     widget.group.multiple = _mode == 1;
     widget.group.minSelect = int.tryParse(minCtrl.text) ?? 0;
-    // Çoklu seçimde her zaman limiti 99 yap
     widget.group.maxSelect = _mode == 1 ? 99 : (int.tryParse(maxCtrl.text) ?? 1);
     widget.onChanged();
   }
@@ -1024,7 +1019,7 @@ class _GroupEditorState extends State<_GroupEditor> {
               ),
             ),
             const SizedBox(width: 8),
-            if (_mode == 0) // Sadece tekli seçimde Max göster
+            if (_mode == 0)
               Expanded(
                 child: TextField(
                   controller: maxCtrl,
@@ -1119,7 +1114,7 @@ class _OptionEditorState extends State<_OptionEditor> {
 class OrderWizard extends StatefulWidget {
   final Product product;
   final Map<String, List<OptionItem>>? initialPicked;
-  final String? initialNote; // YENİ
+  final String? initialNote;
   final bool editMode;
   const OrderWizard({
     super.key,
@@ -1134,7 +1129,7 @@ class OrderWizard extends StatefulWidget {
 class _OrderWizardState extends State<OrderWizard> {
   int step = 0;
   final Map<String, List<OptionItem>> picked = {};
-  final TextEditingController noteCtrl = TextEditingController(); // YENİ
+  final TextEditingController noteCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -1154,20 +1149,7 @@ class _OrderWizardState extends State<OrderWizard> {
     final id = (l == null || l.isEmpty) ? '' : l.first.id;
     return id == 'totoro';
   }
-  static const String _totoroSpecialId = 'sauce_speciale_t';
-  static const String _totoroLabel = '⚠️ Note importante : la sauce spéciale ne peut pas être modifiée.';
-  OptionGroup _totoroFixedSauceGroup() {
-    return OptionGroup(
-      id: 'sauce_burger',
-      title: 'Sauces',
-      multiple: false,
-      minSelect: 1,
-      maxSelect: 1,
-      items: [
-        OptionItem(id: _totoroSpecialId, label: _totoroLabel, price: 0.0),
-      ],
-    );
-  }
+  
   double _sansFritesDedansPrice() {
     final l = picked['type_tacos'];
     final id = (l == null || l.isEmpty) ? '' : l.first.id;
@@ -1219,9 +1201,10 @@ class _OrderWizardState extends State<OrderWizard> {
       }
       return filtered;
     }
+    // TOTORO SEÇİLDİYSE SOS EKRANINI TAMAMEN SİL, ATLA
     if (widget.product.name == 'Burgers') {
       if (_isTotoroSelected()) {
-        return base.map((g) => g.id == 'sauce_burger' ? _totoroFixedSauceGroup() : g).toList();
+        return base.where((g) => g.id != 'sauce_burger').toList();
       }
     }
     return base;
@@ -1287,7 +1270,6 @@ class _OrderWizardState extends State<OrderWizard> {
           list.removeWhere((e) => e.id == 'sans_fromagere');
         } else {
           list.removeWhere((e) => e.id == 'fromagere' || e.id == 'seulement_fromagere' || e.id == 'sans_sauce');
-          // LİMİT YOK
           list.add(it);
         }
         picked[g.id] = list;
@@ -1299,7 +1281,6 @@ class _OrderWizardState extends State<OrderWizard> {
     if (exists) {
       list.removeWhere((e) => e.id == it.id);
     } else {
-      // LİMİTİ KALDIRDIK: list.length >= g.maxSelect kontrolü yok!
       list.add(it);
     }
     picked[g.id] = list;
@@ -1307,12 +1288,7 @@ class _OrderWizardState extends State<OrderWizard> {
   }
 
   bool _validGroup(OptionGroup g) {
-    if (widget.product.name == 'Burgers' && g.id == 'sauce_burger' && _isTotoroSelected()) {
-      final sel = picked[g.id] ?? const <OptionItem>[];
-      return sel.length == 1 && sel.first.id == _totoroSpecialId;
-    }
     final n = (picked[g.id] ?? const []).length;
-    // LİMİTİ KALDIRDIK: Çoklu seçimde sadece minSelect önemli
     if (g.multiple) return n >= g.minSelect;
     return n >= g.minSelect && n <= g.maxSelect;
   }
@@ -1357,7 +1333,7 @@ class _OrderWizardState extends State<OrderWizard> {
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: goPrev),
       ),
       body: isSummary
-          ? _Summary(product: widget.product, picked: picked, total: total, noteCtrl: noteCtrl) // noteCtrl EKLENDİ
+          ? _Summary(product: widget.product, picked: picked, total: total, noteCtrl: noteCtrl)
           : _GroupStep(
               group: groups[step],
               picked: picked,
@@ -1429,7 +1405,6 @@ class _GroupStep extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
           child: Text(
-            // LİMİT KALDIRILDI: Sadece max bilgisi yok, min var
             group.title + (group.multiple ? (group.minSelect > 0 ? '  (min ${group.minSelect})' : '') : ''),
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
@@ -1458,7 +1433,6 @@ class _GroupStep extends StatelessWidget {
                   final sansOn = isCrudGroup && selectedList.any((e) => isSansId(e.id));
                   bool cruditesHardLock =
                       isCrudGroup && (avecOn || sansOn) && !((avecOn && isAvecId(it.id)) || (sansOn && isSansId(it.id)));
-                  // LİMİT KALDIRILDI: Limit Lock false
                   bool limitLock = false; 
                   final disabled = cruditesHardLock || limitLock;
                   void onTap() {
@@ -1537,7 +1511,7 @@ class _Summary extends StatelessWidget {
   final Product product;
   final Map<String, List<OptionItem>> picked;
   final double total;
-  final TextEditingController noteCtrl; // YENİ
+  final TextEditingController noteCtrl;
 
   const _Summary({required this.product, required this.picked, required this.total, required this.noteCtrl});
 
@@ -1561,7 +1535,6 @@ class _Summary extends StatelessWidget {
             const Divider(),
           ],
         
-        // YENİ NOT EKRANI
         const SizedBox(height: 8),
         TextField(
           controller: noteCtrl,
@@ -1643,7 +1616,6 @@ class CartPage extends StatelessWidget {
                         for (final it in (l.picked[g.id] ?? const <OptionItem>[]))
                           Text('• ${it.label}${it.price == 0 ? '' : ' (+€${it.price.toStringAsFixed(2)})'}'),
                       ],
-                    // YENİ NOT ALANI (Sepette Kırmızı gösterelim)
                     if (l.note.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -1672,14 +1644,13 @@ class CartPage extends StatelessWidget {
                       tooltip: 'Modifier',
                       icon: const Icon(Icons.edit_outlined),
                       onPressed: () async {
-                        // Değişti: Dönüş tipi Map
                         final result = await Navigator.push<Map<String, dynamic>>(
                           context,
                           MaterialPageRoute(
                             builder: (_) => OrderWizard(
                               product: l.product,
                               initialPicked: l.picked,
-                              initialNote: l.note, // Notu da gönder
+                              initialNote: l.note,
                               editMode: true,
                             ),
                           ),
@@ -1869,7 +1840,6 @@ class OrdersPage extends StatelessWidget {
                                         ],
                                       ),
                                   ],
-                                // YENİ: Diyalog içinde not gösterimi
                                 if (o.lines[idx].note.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4, bottom: 4),
@@ -1995,9 +1965,15 @@ Future<DateTime?> _askReadyTime(BuildContext context) async {
   final app = AppScope.of(context);
   final now = DateTime.now();
   final anchor = DateTime(now.year, now.month, now.day, now.hour, now.minute);
-  final minDT = anchor.add(Duration(minutes: app.prepMinutes));
-  final earliestDT = minDT.subtract(const Duration(minutes: EARLY_TOLERANCE_MIN));
-  TimeOfDay initial = TimeOfDay(hour: minDT.hour, minute: minDT.minute);
+  
+  // Varsayılan açılış saati (Ayarlanan "Délai de préparation" kadar ileri atar)
+  final defaultDT = anchor.add(Duration(minutes: app.prepMinutes));
+  
+  // YENİ: Seçilebilecek en erken saat artık doğrudan "Şu an" (anchor).
+  final earliestDT = anchor; 
+  
+  TimeOfDay initial = TimeOfDay(hour: defaultDT.hour, minute: defaultDT.minute);
+  
   while (true) {
     final picked = await showTimePicker(
       context: context,
@@ -2012,7 +1988,15 @@ Future<DateTime?> _askReadyTime(BuildContext context) async {
       },
     );
     if (picked == null) return null;
-    final pickedDT = DateTime(minDT.year, minDT.month, minDT.day, picked.hour, picked.minute);
+    
+    // Gece yarısı geçişleri için bugünü baz alalım (anchor day)
+    DateTime pickedDT = DateTime(anchor.year, anchor.month, anchor.day, picked.hour, picked.minute);
+    
+    // Eğer seçtiğimiz saat şimdiki saatten çok küçükse, (örneğin şu an 23:30, biz 00:30 seçtik) ertesi güne ait demektir.
+    if (picked.hour < anchor.hour - 12) {
+      pickedDT = pickedDT.add(const Duration(days: 1));
+    }
+
     if (pickedDT.isBefore(earliestDT)) {
       if (context.mounted) {
         _snack(context, 'Vous ne pouvez pas choisir avant ${_two(earliestDT.hour)}:${_two(earliestDT.minute)}.', ms: 1800);
@@ -2171,7 +2155,6 @@ Future<void> printOrderAndroidWith(SavedOrder o, String ip, int port) async {
         }
       }
     }
-    // YENİ: Mutfak için eklenen özel not, fişte BÜYÜK basılsın
     if (l.note.isNotEmpty) {
       _writeCp1252(socket, '\n');
       _strongLine(socket, '  >>> NOTE: ${l.note.toUpperCase()} <<<');
